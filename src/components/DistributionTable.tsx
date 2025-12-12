@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { formatDigit } from '../utils/format'
 
 export type DistRow = { value: number; probability: number }

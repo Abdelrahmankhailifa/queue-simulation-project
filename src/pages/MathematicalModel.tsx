@@ -1,12 +1,26 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+type Results =
+  | {
+      error: string
+    }
+  | {
+      Ls: number
+      Lq: number
+      Ws: number
+      Wq: number
+      R: number
+      Po: number
+      Pn: number | null
+    }
+
 export function MathematicalModelPage() {
   const [lambda, setLambda] = useState('')
   const [mu, setMu] = useState('')
   const [nCustomers, setNCustomers] = useState('')
 
-  const results = useMemo(() => {
+  const results = useMemo((): Results | null => {
     const λ = Number(lambda)
     const μ = Number(mu)
     const n = Number(nCustomers) || 0
@@ -88,7 +102,7 @@ export function MathematicalModelPage() {
         {results?.error && <div className="alert error">{results.error}</div>}
       </section>
 
-      {results && !results.error && (
+      {results && !('error' in results) && (
         <section className="panel">
           <div className="panel-header">
             <h2>System Measures of Performance</h2>

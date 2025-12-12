@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DistributionTable, type CumulativeRow, type DistRow } from '../components/DistributionTable'
-import { formatDigit } from '../utils/format'
 
 type SimulationRow = {
   customer: number
@@ -19,17 +18,12 @@ type SimulationRow = {
 
 const tolerance = 0.001
 
-function parseNumber(value: string) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : null
-}
-
 function buildCumulative(dist: DistRow[]): { rows: CumulativeRow[]; error?: string } {
   if (!dist.length) {
     return { rows: [], error: 'Add at least one row' }
   }
   let sum = 0
-  const rows: CumulativeRow[] = dist.map((row, idx) => {
+  const rows: CumulativeRow[] = dist.map((row) => {
     sum += row.probability
     return {
       value: row.value,
