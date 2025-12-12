@@ -99,7 +99,7 @@ export function MathematicalModelPage() {
           </label>
         </div>
 
-        {results?.error && <div className="alert error">{results.error}</div>}
+        {results && 'error' in results && <div className="alert error">{results.error}</div>}
       </section>
 
       {results && !('error' in results) && (
