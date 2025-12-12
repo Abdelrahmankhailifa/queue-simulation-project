@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from 'react-router-dom'
 import { SingleServerPage } from './pages/SingleServer'
 import { MathematicalModelPage } from './pages/MathematicalModel'
+import { TestRandomNumbersPage } from './pages/TestRandomNumbers'
 import './App.css'
 
 const options = [
@@ -23,6 +24,11 @@ const options = [
     title: 'Mathematical Model',
     path: '/mathematical-model',
     description: 'Work with a mathematical model.',
+  },
+  {
+    title: 'Test the Random Numbers',
+    path: '/test-random-numbers',
+    description: 'Test and validate random number generation.',
   },
 ] as const
 
@@ -102,6 +108,7 @@ function App() {
         }
       />
       <Route path="/mathematical-model" element={<MathematicalModelPage />} />
+      <Route path="/test-random-numbers" element={<TestRandomNumbersPage />} />
     </Routes>
   )
 }
