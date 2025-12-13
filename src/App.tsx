@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from 'react-router-dom'
 import { SingleServerPage } from './pages/SingleServer'
 import { MultiServerPage } from './pages/MultiServer'
+import { InventoryPage } from './pages/Inventory'
 import { MathematicalModelPage } from './pages/MathematicalModel'
 import { TestRandomNumbersPage } from './pages/TestRandomNumbers'
 import './App.css'
@@ -87,12 +88,7 @@ function App() {
       />
       <Route
         path="/inventory"
-        element={
-          <ModulePage
-            title="Inventory"
-            body="This page will host the inventory simulation details."
-          />
-        }
+        element={<InventoryPage />}
       />
       <Route
         path="/static"

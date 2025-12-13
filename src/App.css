@@ -400,3 +400,18 @@ label.stacked span {
   color: #0f172a;
   margin-top: 4px;
 }
+.inventory-table .table-row {
+  grid-template-columns: 
+    80px  /* Cycle */
+    80px  /* Day */
+    200px /* Beginning Inventory */
+    250px /* Random Digits for Demand */
+    100px /* Demand */
+    200px /* Ending Inventory */
+    200px /* Shortage Quantity */
+    200px /* Order Quantity */
+    250px /* Random Digits for Lead Time */
+    250px /* Days until Order Arrives */
+    24px; /* Spacer/gap adjustment */
+  gap: 8px;
+}
