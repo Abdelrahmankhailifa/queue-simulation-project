@@ -230,6 +230,33 @@ button:disabled {
   white-space: nowrap;
 }
 
+.multi-server-table .table-row {
+  grid-template-columns: 
+    150px 
+    250px 
+    250px 
+    250px 
+    250px 
+    24px 
+    270px 
+    250px 
+    250px 
+    24px 
+    250px 
+    250px 
+    250px 
+    24px 
+    200px;
+  gap: 8px;
+}
+
+.multi-server-table .table-row .spacer {
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-width: 0;
+}
+
 
 .table-row.table-head {
   background: #f1f5f9;
