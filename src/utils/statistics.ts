@@ -30,7 +30,7 @@ export interface ChiSquareResult {
     N: number
 }
 
-export function calculateChiSquare(numbers: number[], k: number, alpha: number = 0.05): ChiSquareResult {
+export function calculateChiSquare(numbers: number[], k: number, _alpha: number = 0.05): ChiSquareResult {
     const N = numbers.length
     const Ei = N / k
     const intervals = []
@@ -88,9 +88,9 @@ export interface DependencyResult {
     N: number
 }
 
-export function calculateDependency(numbers: number[], lag: number = 1, alpha: number = 0.05): DependencyResult {
+export function calculateDependency(numbers: number[], lag: number = 1, _alpha: number = 0.05): DependencyResult {
     const N = numbers.length
-    const M = Math.floor((N - lag) / lag) // Not exactly correct for simple autocorrelation tests. 
+
     // Usually for Independence Test (Autocorrelation):
     // We compute estimator for autocorrelation at lag.
     // Formula: rho_hat = (Sum(X_i * X_{i+lag}) / (N - lag)) - 0.25 (approx mean subtraction 0.5*0.5? No)
