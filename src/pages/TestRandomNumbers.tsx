@@ -5,36 +5,63 @@ import { calculateChiSquare, calculateDependency, type ChiSquareResult, type Dep
 export function TestRandomNumbersPage() {
   const [method, setMethod] = useState<'chi' | 'dep'>('chi')
   const [inputNumbers, setInputNumbers] = useState<string>('')
-  const [k, setK] = useState<number>(5)
-  const [lag, setLag] = useState<number>(1)
-  const [alpha, setAlpha] = useState<number>(0.05)
+
+  // Inputs as strings to allow empty defaults
+  const [kStr, setKStr] = useState<string>('')
+  // lagStr was removed as we now auto-calculate generic lags for the whole range
+  const [alphaStr, setAlphaStr] = useState<string>('')
+
   const [eduMode, setEduMode] = useState<boolean>(false)
 
   const [chiResult, setChiResult] = useState<ChiSquareResult | null>(null)
   const [depResult, setDepResult] = useState<DependencyResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const [selectedInterval, setSelectedInterval] = useState<number | null>(null)
+
   const handleRun = () => {
     setError(null)
     setChiResult(null)
     setDepResult(null)
+    setSelectedInterval(null)
 
+    // Handle "0" strings correctly. filter(Boolean) removes "0".
     const numbers = inputNumbers
       .split(/[\s,]+/)
-      .filter(Boolean)
+      .filter(s => s.trim() !== '')
       .map(Number)
 
     if (numbers.length === 0) {
       setError('Please enter at least one number.')
       return
     }
-    if (numbers.some(n => isNaN(n) || n < 0 || n >= 1)) {
+    if (numbers.some(n => isNaN(n) || n < 0 || n > 1)) {
+      // Note: strict 0-1, but usually 1 is excluded from generator. If user includes 1, it might break logic? 
+      // Logic handles <= end for last bucket.
       setError('All numbers must be between 0 and 1. Check for NaNs.')
       return
     }
 
+    // Parse and validate Alpha ONLY if needed (Chi-Square)
+    let alpha = 0.05; // Default for Dependency if not provided
+
     if (method === 'chi') {
-      if (k < 1) {
+      if (!alphaStr) {
+        setError('Please enter a value for Alpha (α).')
+        return;
+      }
+      alpha = parseFloat(alphaStr);
+      if (isNaN(alpha) || alpha <= 0 || alpha >= 1) {
+        setError('Alpha must be between 0 and 1 (exclusive).')
+        return
+      }
+
+      if (!kStr) {
+        setError('Please enter the number of Intervals (k).')
+        return
+      }
+      const k = parseInt(kStr, 10);
+      if (isNaN(k) || k < 1) {
         setError('Number of intervals (k) must be at least 1.')
         return
       }
@@ -45,12 +72,12 @@ export function TestRandomNumbersPage() {
         setError('Calculation Error')
       }
     } else {
-      if (lag < 1 || lag >= numbers.length) {
-        setError('Lag must be >= 1 and less than total numbers.')
-        return
-      }
+      // Dependency Test (Multi-Lag)
+      // No inputs required for Lag or Alpha (visual test).
+      // calculateDependency executes for k=1..N-1 automatically.
       try {
-        const res = calculateDependency(numbers, lag, alpha)
+        // Pass dummy lag=0, and default alpha. They are ignored or just passed through.
+        const res = calculateDependency(numbers, 0, alpha)
         setDepResult(res)
       } catch (e) {
         setError('Calculation Error')
@@ -63,10 +90,21 @@ export function TestRandomNumbersPage() {
     setChiResult(null)
     setDepResult(null)
     setError(null)
+    setSelectedInterval(null)
+    // Optional: Reset params too? Or keep them? Usually reset clears everything.
+    setKStr('')
+    // setLagStr removed
+    setAlphaStr('')
+  }
+
+  // Helper to get numbers in a specific interval for display
+  const getNumbersInInterval = (start: number, end: number, isLast: boolean) => {
+    const numbers = inputNumbers.split(/[\s,]+/).filter(s => s.trim() !== '').map(Number);
+    return numbers.filter(n => n >= start && (isLast ? n <= end : n < end));
   }
 
   // Pre-calculate count for hint
-  const count = inputNumbers.split(/[\s,]+/).filter(Boolean).length
+  const count = inputNumbers.split(/[\s,]+/).filter(s => s.trim() !== '').length
 
   return (
     <main className="page detail">
@@ -79,13 +117,13 @@ export function TestRandomNumbersPage() {
         <div className="tabs">
           <button
             className={`tab ${method === 'chi' ? 'active' : ''}`}
-            onClick={() => { setMethod('chi'); setChiResult(null); setDepResult(null); }}
+            onClick={() => { setMethod('chi'); setChiResult(null); setDepResult(null); setSelectedInterval(null); }}
           >
             Uniformity (Chi-Square)
           </button>
           <button
             className={`tab ${method === 'dep' ? 'active' : ''}`}
-            onClick={() => { setMethod('dep'); setChiResult(null); setDepResult(null); }}
+            onClick={() => { setMethod('dep'); setChiResult(null); setDepResult(null); setSelectedInterval(null); }}
           >
             Independence (Auto-Correlation)
           </button>
@@ -123,18 +161,32 @@ export function TestRandomNumbersPage() {
             {method === 'chi' ? (
               <div className="control-group">
                 <label>Intervals (k)</label>
-                <input type="number" value={k} onChange={e => setK(Number(e.target.value))} min={1} />
+                <input
+                  type="number"
+                  value={kStr}
+                  onChange={e => setKStr(e.target.value)}
+                  min={1}
+                  placeholder="e.g. 5"
+                />
               </div>
             ) : (
+              null
+              /* method === 'dep' -> No specific inputs (Lag/Alpha ignored/hidden for this visual test) */
+            )}
+
+            {/* Show Alpha input ONLY for Chi-Square now, as Dependency is visual/avg based */}
+            {method === 'chi' && (
               <div className="control-group">
-                <label>Lag</label>
-                <input type="number" value={lag} onChange={e => setLag(Number(e.target.value))} min={1} />
+                <label>Alpha (α)</label>
+                <input
+                  type="number"
+                  value={alphaStr}
+                  onChange={e => setAlphaStr(e.target.value)}
+                  step={0.01}
+                  placeholder="e.g. 0.05"
+                />
               </div>
             )}
-            <div className="control-group">
-              <label>Alpha (α)</label>
-              <input type="number" value={alpha} onChange={e => setAlpha(Number(e.target.value))} step={0.01} />
-            </div>
           </div>
 
           <div className="actions">
@@ -172,8 +224,8 @@ export function TestRandomNumbersPage() {
                   <h4>🎓 Exam Explanation</h4>
                   <p>
                     <strong>Hypothesis:</strong> H₀: Uniform Distribution. H₁: Not Uniform.<br />
-                    <strong>Calculations:</strong> With <em>N={chiResult.N}</em> and <em>k={k}</em>, we calculated χ²₀ = {chiResult.chiStat.toFixed(4)}.<br />
-                    <strong>Decision:</strong> The critical values for α={alpha} and df={chiResult.dof} is {chiResult.criticalValue.toFixed(3)}.<br />
+                    <strong>Calculations:</strong> With <em>N={chiResult.N}</em> and <em>k={chiResult.k}</em>, we calculated χ²₀ = {chiResult.chiStat.toFixed(4)}.<br />
+                    <strong>Decision:</strong> The critical values for α={chiResult.alpha} and df={chiResult.dof} is {chiResult.criticalValue.toFixed(3)}.<br />
                     Since {chiResult.chiStat.toFixed(4)} {chiResult.isUniform ? '<' : '>'} {chiResult.criticalValue.toFixed(3)}, we {chiResult.isUniform ? 'Fail to Reject' : 'Reject'} H₀.
                   </p>
                 </div>
@@ -195,29 +247,52 @@ export function TestRandomNumbersPage() {
               </div>
 
               <div className="table-card">
-                <h3>Interval Breakdown</h3>
+                <h3>Interval Breakdown (Click row to see numbers)</h3>
                 <div className="table-wrapper">
                   <table>
                     <thead>
                       <tr>
-                        <th>Range</th>
+                        <th>Range [Start, End)</th>
                         <th>Observed (O)</th>
                         <th>Expected (E)</th>
                         <th>(O-E)²/E</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {chiResult.intervals.map((row, i) => (
-                        <tr key={i}>
-                          <td>{row.start.toFixed(2)} - {row.end.toFixed(2)}</td>
-                          <td>{row.oi}</td>
-                          <td>{row.ei.toFixed(2)}</td>
-                          <td>{row.chiPart.toFixed(4)}</td>
-                        </tr>
-                      ))}
+                      {chiResult.intervals.map((row, i) => {
+                        const isLast = i === chiResult.intervals.length - 1;
+                        const rangeLabel = isLast
+                          ? `[${row.start.toFixed(2)}, ${row.end.toFixed(2)}]`
+                          : `[${row.start.toFixed(2)}, ${row.end.toFixed(2)})`;
+
+                        return (
+                          <tr
+                            key={i}
+                            onClick={() => setSelectedInterval(i)}
+                            className={selectedInterval === i ? 'selected-row' : 'clickable-row'}
+                          >
+                            <td>{rangeLabel}</td>
+                            <td>{row.oi}</td>
+                            <td>{row.ei.toFixed(2)}</td>
+                            <td>{row.chiPart.toFixed(4)}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
+                {selectedInterval !== null && (
+                  <div className="interval-details">
+                    <h4>Numbers in Interval {selectedInterval + 1}</h4>
+                    <div className="number-list">
+                      {getNumbersInInterval(
+                        chiResult.intervals[selectedInterval].start,
+                        chiResult.intervals[selectedInterval].end,
+                        selectedInterval === chiResult.intervals.length - 1
+                      ).join(', ')}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -225,38 +300,45 @@ export function TestRandomNumbersPage() {
           {/* DEPENDENCY RESULTS */}
           {depResult && (
             <>
-              <div className={`result-banner ${depResult.isIndependent ? 'success' : 'failure'}`}>
-                <div className="banner-icon">{depResult.isIndependent ? '✅' : '❌'}</div>
-                <div className="banner-content">
-                  <h3>{depResult.isIndependent ? 'Hypothesis Accepted' : 'Hypothesis Rejected'}</h3>
-                  <p>{depResult.isIndependent ? 'The numbers are Independent.' : 'The numbers are Dependent (Correleated).'}</p>
-                </div>
-              </div>
-
               {eduMode && (
                 <div className="edu-card">
-                  <h4>🎓 Exam Explanation</h4>
+                  <h4>🎓 Exam Procedure</h4>
                   <p>
-                    <strong>Hypothesis:</strong> H₀: Numbers are Independent.<br />
-                    <strong>Calculations:</strong> Checked autocorrelation at lag {lag}. Calculated Z₀ = {depResult.zStat.toFixed(4)}.<br />
-                    <strong>Decision:</strong> Critical Z for α={alpha} is {depResult.criticalValue}.<br />
-                    Since |{depResult.zStat.toFixed(4)}| {depResult.isIndependent ? '≤' : '>'} {depResult.criticalValue}, we {depResult.isIndependent ? 'Accept' : 'Reject'} H₀.
+                    <strong>Method:</strong> Serial Correlation Test (Auto-Correlation Function).<br />
+                    Calculated correlations for lags k=1 to {depResult.correlations.length}.
+                    Check if the Average Absolute Correlation is low effectively close to zero.
                   </p>
                 </div>
               )}
 
-              <div className="stats-grid">
-                <div className="stat-box">
-                  <label>Calculated Z₀</label>
-                  <div className="value">{depResult.zStat.toFixed(4)}</div>
+              <div className="table-card">
+                <h3>Auto-Correlation Table</h3>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Lag (k)</th>
+                        <th>Correlation r_xx(k)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {depResult.correlations.map(row => (
+                        <tr key={row.k}>
+                          <td>{row.k}</td>
+                          <td>{row.value.toFixed(6)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="stat-box">
-                  <label>Critical Z</label>
-                  <div className="value">±{depResult.criticalValue.toFixed(3)}</div>
+              </div>
+
+              <div className="result-inference-box">
+                <div className="result-avg">
+                  Avg(Abs(r_xx(k))) = <strong>{depResult.avgAbsCorrelation.toFixed(6)}</strong>
                 </div>
-                <div className="stat-box">
-                  <label>Autocorrelation (ρ̂)</label>
-                  <div className="value">{depResult.correlation.toFixed(4)}</div>
+                <div className="result-status-box">
+                  You can indicate independence
                 </div>
               </div>
             </>
@@ -464,6 +546,36 @@ export function TestRandomNumbersPage() {
         @media (max-width: 900px) {
            .layout-split { grid-template-columns: 1fr; }
            .stats-grid { grid-template-columns: 1fr; }
+        }
+        
+        /* INTERACTIVE TABLE */
+        .clickable-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .clickable-row:hover {
+            background: #f1f5f9;
+        }
+        .selected-row {
+            background: #e0e7ff !important; /* Indigo 100 */
+        }
+        .interval-details {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .interval-details h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        .number-list {
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #334155;
+            word-break: break-all;
         }
       `}</style>
     </main>
