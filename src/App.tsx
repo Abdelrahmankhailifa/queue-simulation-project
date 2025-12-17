@@ -39,7 +39,7 @@ function Landing() {
     <main className="page">
       <header className="hero">
         <p className="eyebrow">Simulation Project</p>
-        <h1>Welcome in our simulation project</h1>
+        <h1>Welcome to our simulation project</h1>
         <p className="subhead">Choose a module to start exploring.</p>
       </header>
 

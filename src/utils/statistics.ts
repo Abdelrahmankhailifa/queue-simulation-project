@@ -140,14 +140,20 @@ export function calculateChiSquare(numbers: number[], k: number, alpha: number):
 }
 
 export interface DependencyResult {
-    correlations: Array<{ k: number, value: number }>
+    correlations: Array<{
+        k: number
+        value: number
+        zStatistic: number
+        isSignificant: boolean
+    }>
     avgAbsCorrelation: number
-    isIndependent: boolean // Placeholder based on low correlation? Or just always true for display?
+    isIndependent: boolean
     N: number
-    alpha: number // Kept for interface compatibility, though unused in calc
+    alpha: number
+    zCritical: number
 }
 
-export function calculateDependency(numbers: number[], _lag: number, alpha: number): DependencyResult {
+export function calculateDependency(numbers: number[], alpha: number): DependencyResult {
     const n = numbers.length
 
     // 1. Calculate Mean (x_bar)
@@ -155,16 +161,29 @@ export function calculateDependency(numbers: number[], _lag: number, alpha: numb
     for (let i = 0; i < n; i++) sum += numbers[i]
     const mean = sum / n
 
-    // 2. Calculate Variance (Sx^2)
-    // Image 1: Variance = 0.15333 for inputs with mean 0.474.
-    // This matches dividing by (N-1), i.e., Sample Variance.
+    // 2. Calculate Sample Variance (Sx^2) = sum((x_i - mean)^2) / (n - 1)
     let sumSqDiff = 0
     for (let i = 0; i < n; i++) sumSqDiff += Math.pow(numbers[i] - mean, 2)
 
-    // Use Sample Variance (n-1) to match user's screenshot
+    // Sample Variance
     const variance = (n > 1) ? sumSqDiff / (n - 1) : 0
 
-    const correlations: Array<{ k: number, value: number }> = []
+    // Z-Test Calculation
+    // Critical Value (Two-Tailed)
+    const zCritical = getNormInverse(1 - alpha / 2)
+
+    // Standard Error approx 1 / sqrt(N)
+    const stdError = 1 / Math.sqrt(n)
+
+    const correlations: Array<{
+        k: number
+        value: number
+        zStatistic: number
+        isSignificant: boolean
+    }> = []
+
+    // Track if any lag fails the test
+    let hasSignificantCorrelation = false
 
     // Loop k from 1 to n-1
     for (let k = 1; k < n; k++) {
@@ -175,14 +194,30 @@ export function calculateDependency(numbers: number[], _lag: number, alpha: numb
             covSum += (numbers[i] - mean) * (numbers[i + k] - mean)
         }
 
-        // Formula: r_xx(k) = (1 / (n-k)) * (covSum / variance)
-        // Guard against zero variance
+        // Formula based on user test case:
+        // r_xx(k) = [ (1 / (n - k)) * covSum ] / variance
+
         let r_k = 0
         if (variance !== 0) {
-            r_k = (1 / (n - k)) * (covSum / variance)
+            const covMean = covSum / (n - k)
+            r_k = covMean / variance
         }
 
-        correlations.push({ k, value: r_k })
+        // Calculate Z-Statistic
+        // Z = r_xx(k) / SE
+        const zStat = r_k / stdError
+        const isSignificant = Math.abs(zStat) > zCritical
+
+        if (isSignificant) {
+            hasSignificantCorrelation = true
+        }
+
+        correlations.push({
+            k,
+            value: r_k,
+            zStatistic: zStat,
+            isSignificant
+        })
     }
 
     // Average of Absolute Correlations
@@ -190,19 +225,15 @@ export function calculateDependency(numbers: number[], _lag: number, alpha: numb
     correlations.forEach(c => sumAbs += Math.abs(c.value))
     const avgAbsCorrelation = correlations.length > 0 ? sumAbs / correlations.length : 0
 
-    // The image says "You can indicate independence".
-    // It implies this test is a visual/heuristic check. 
-    // We'll return true to show the positive "Indicate independence" UI for now, 
-    // since the user didn't specify a strict threshold failure condition.
-    const isIndependent = true
+    // Independent if NO significant correlations found
+    const isIndependent = !hasSignificantCorrelation
 
     return {
         correlations,
         avgAbsCorrelation,
         isIndependent,
         N: n,
-        alpha
+        alpha,
+        zCritical
     }
 }
-
-

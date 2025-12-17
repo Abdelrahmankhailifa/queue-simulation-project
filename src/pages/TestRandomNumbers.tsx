@@ -42,20 +42,21 @@ export function TestRandomNumbersPage() {
       return
     }
 
-    // Parse and validate Alpha ONLY if needed (Chi-Square)
-    let alpha = 0.05; // Default for Dependency if not provided
+    // Parse and validate Alpha
+    let alpha = 0.05; // Default if not provided
 
-    if (method === 'chi') {
-      if (!alphaStr) {
-        setError('Please enter a value for Alpha (α).')
-        return;
-      }
+    if (!alphaStr) {
+      // If alpha is not provided, use default 0.05
+      alpha = 0.05;
+    } else {
       alpha = parseFloat(alphaStr);
       if (isNaN(alpha) || alpha <= 0 || alpha >= 1) {
         setError('Alpha must be between 0 and 1 (exclusive).')
         return
       }
+    }
 
+    if (method === 'chi') {
       if (!kStr) {
         setError('Please enter the number of Intervals (k).')
         return
@@ -73,11 +74,8 @@ export function TestRandomNumbersPage() {
       }
     } else {
       // Dependency Test (Multi-Lag)
-      // No inputs required for Lag or Alpha (visual test).
-      // calculateDependency executes for k=1..N-1 automatically.
       try {
-        // Pass dummy lag=0, and default alpha. They are ignored or just passed through.
-        const res = calculateDependency(numbers, 0, alpha)
+        const res = calculateDependency(numbers, alpha)
         setDepResult(res)
       } catch (e) {
         setError('Calculation Error')
@@ -174,19 +172,17 @@ export function TestRandomNumbersPage() {
               /* method === 'dep' -> No specific inputs (Lag/Alpha ignored/hidden for this visual test) */
             )}
 
-            {/* Show Alpha input ONLY for Chi-Square now, as Dependency is visual/avg based */}
-            {method === 'chi' && (
-              <div className="control-group">
-                <label>Alpha (α)</label>
-                <input
-                  type="number"
-                  value={alphaStr}
-                  onChange={e => setAlphaStr(e.target.value)}
-                  step={0.01}
-                  placeholder="e.g. 0.05"
-                />
-              </div>
-            )}
+            {/* Show Alpha input for BOTH now */}
+            <div className="control-group">
+              <label>Alpha (α)</label>
+              <input
+                type="number"
+                value={alphaStr}
+                onChange={e => setAlphaStr(e.target.value)}
+                step={0.01}
+                placeholder="Default: 0.05"
+              />
+            </div>
           </div>
 
           <div className="actions">
@@ -304,9 +300,11 @@ export function TestRandomNumbersPage() {
                 <div className="edu-card">
                   <h4>🎓 Exam Procedure</h4>
                   <p>
-                    <strong>Method:</strong> Serial Correlation Test (Auto-Correlation Function).<br />
-                    Calculated correlations for lags k=1 to {depResult.correlations.length}.
-                    Check if the Average Absolute Correlation is low effectively close to zero.
+                    <strong>Method:</strong> Z-Test for Auto-Correlation.<br />
+                    <strong>Formula:</strong> Z = r_xx(k) / σ where σ ≈ 1/√N<br />
+                    <strong>Calculations:</strong> N={depResult.N}, SE={(1 / Math.sqrt(depResult.N)).toFixed(4)}.<br />
+                    <strong>Critical Value:</strong> Z({depResult.alpha}) = &plusmn;{depResult.zCritical.toFixed(4)}.<br />
+                    If any |Z| &gt; {depResult.zCritical.toFixed(4)}, the hypothesis of independence is rejected.
                   </p>
                 </div>
               )}
@@ -319,13 +317,23 @@ export function TestRandomNumbersPage() {
                       <tr>
                         <th>Lag (k)</th>
                         <th>Correlation r_xx(k)</th>
+                        <th>Z-Statistic</th>
+                        <th>Result</th>
                       </tr>
                     </thead>
                     <tbody>
                       {depResult.correlations.map(row => (
-                        <tr key={row.k}>
+                        <tr key={row.k} className={row.isSignificant ? 'row-failure' : ''}>
                           <td>{row.k}</td>
                           <td>{row.value.toFixed(6)}</td>
+                          <td>{row.zStatistic.toFixed(4)}</td>
+                          <td>
+                            {row.isSignificant ? (
+                              <span className="badge error">Dependent</span>
+                            ) : (
+                              <span className="badge success">Independent</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -334,12 +342,36 @@ export function TestRandomNumbersPage() {
               </div>
 
               <div className="result-inference-box">
-                <div className="result-avg">
-                  Avg(Abs(r_xx(k))) = <strong>{depResult.avgAbsCorrelation.toFixed(6)}</strong>
+                <div className="result-metrics">
+                  <div className="metric">
+                    Avg(|r_xx(k)|) = <strong>{depResult.avgAbsCorrelation.toFixed(6)}</strong>
+                  </div>
+                  <div className="metric">
+                    Z<sub>critical</sub> = <strong>{depResult.zCritical.toFixed(4)}</strong>
+                  </div>
                 </div>
-                <div className="result-status-box">
-                  You can indicate independence
-                </div>
+
+                {!depResult.isIndependent ? (
+                  <div className="result-status-box failure">
+                    <span className="status-icon">⚠️</span>
+                    <div>
+                      <strong>DEPENDENT</strong>
+                      <div className="micro-text">One or more lags exceeded Z-critical.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="result-status-box success">
+                    <span className="status-icon">✅</span>
+                    <div>
+                      <strong>INDEPENDENT</strong>
+                      <div className="micro-text">All lags within Z-critical range.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="result-message-simple">
+                {depResult.isIndependent ? "You can indicate independence" : "You can indicate dependence"}
               </div>
             </>
           )}
@@ -577,6 +609,36 @@ export function TestRandomNumbersPage() {
             color: #334155;
             word-break: break-all;
         }
+        .result-metrics {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 16px;
+        }
+        .metric {
+            font-size: 16px;
+            color: #475569;
+        }
+        .result-message-simple {
+            margin-top: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            color: #334155;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.success { background: #dcfce7; color: #166534; }
+        .badge.error { background: #fee2e2; color: #991b1b; }
+        .row-failure td {
+            background-color: #fef2f2;
+            color: #991b1b;
+        }
+        .micro-text { font-size: 12px; font-weight: normal; opacity: 0.8; }
       `}</style>
     </main>
   )
