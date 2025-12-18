@@ -1,45 +1,51 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { calculateChiSquare, calculateDependency, type ChiSquareResult, type DependencyResult } from '../utils/statistics'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  calculateChiSquare,
+  calculateDependency,
+  type ChiSquareResult,
+  type DependencyResult,
+} from "../utils/statistics";
+import { RngInput } from "../components/RngInput";
 
 export function TestRandomNumbersPage() {
-  const [method, setMethod] = useState<'chi' | 'dep'>('chi')
-  const [inputNumbers, setInputNumbers] = useState<string>('')
+  const [method, setMethod] = useState<"chi" | "dep">("chi");
+  const [inputNumbers, setInputNumbers] = useState<string>("");
 
   // Inputs as strings to allow empty defaults
-  const [kStr, setKStr] = useState<string>('')
+  const [kStr, setKStr] = useState<string>("");
   // lagStr was removed as we now auto-calculate generic lags for the whole range
-  const [alphaStr, setAlphaStr] = useState<string>('')
+  const [alphaStr, setAlphaStr] = useState<string>("");
 
-  const [eduMode, setEduMode] = useState<boolean>(false)
+  const [eduMode, setEduMode] = useState<boolean>(false);
 
-  const [chiResult, setChiResult] = useState<ChiSquareResult | null>(null)
-  const [depResult, setDepResult] = useState<DependencyResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [chiResult, setChiResult] = useState<ChiSquareResult | null>(null);
+  const [depResult, setDepResult] = useState<DependencyResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedInterval, setSelectedInterval] = useState<number | null>(null)
+  const [selectedInterval, setSelectedInterval] = useState<number | null>(null);
 
   const handleRun = () => {
-    setError(null)
-    setChiResult(null)
-    setDepResult(null)
-    setSelectedInterval(null)
+    setError(null);
+    setChiResult(null);
+    setDepResult(null);
+    setSelectedInterval(null);
 
     // Handle "0" strings correctly. filter(Boolean) removes "0".
     const numbers = inputNumbers
       .split(/[\s,]+/)
-      .filter(s => s.trim() !== '')
-      .map(Number)
+      .filter((s) => s.trim() !== "")
+      .map(Number);
 
     if (numbers.length === 0) {
-      setError('Please enter at least one number.')
-      return
+      setError("Please enter at least one number.");
+      return;
     }
-    if (numbers.some(n => isNaN(n) || n < 0 || n > 1)) {
-      // Note: strict 0-1, but usually 1 is excluded from generator. If user includes 1, it might break logic? 
+    if (numbers.some((n) => isNaN(n) || n < 0 || n > 1)) {
+      // Note: strict 0-1, but usually 1 is excluded from generator. If user includes 1, it might break logic?
       // Logic handles <= end for last bucket.
-      setError('All numbers must be between 0 and 1. Check for NaNs.')
-      return
+      setError("All numbers must be between 0 and 1. Check for NaNs.");
+      return;
     }
 
     // Parse and validate Alpha
@@ -51,77 +57,101 @@ export function TestRandomNumbersPage() {
     } else {
       alpha = parseFloat(alphaStr);
       if (isNaN(alpha) || alpha <= 0 || alpha >= 1) {
-        setError('Alpha must be between 0 and 1 (exclusive).')
-        return
+        setError("Alpha must be between 0 and 1 (exclusive).");
+        return;
       }
     }
 
-    if (method === 'chi') {
+    if (method === "chi") {
       if (!kStr) {
-        setError('Please enter the number of Intervals (k).')
-        return
+        setError("Please enter the number of Intervals (k).");
+        return;
       }
       const k = parseInt(kStr, 10);
       if (isNaN(k) || k < 1) {
-        setError('Number of intervals (k) must be at least 1.')
-        return
+        setError("Number of intervals (k) must be at least 1.");
+        return;
       }
       try {
-        const res = calculateChiSquare(numbers, k, alpha)
-        setChiResult(res)
-      } catch (e) {
-        setError('Calculation Error')
+        const res = calculateChiSquare(numbers, k, alpha);
+        setChiResult(res);
+      } catch {
+        setError("Calculation Error");
       }
     } else {
       // Dependency Test (Multi-Lag)
       try {
-        const res = calculateDependency(numbers, alpha)
-        setDepResult(res)
-      } catch (e) {
-        setError('Calculation Error')
+        const res = calculateDependency(numbers, alpha);
+        setDepResult(res);
+      } catch {
+        setError("Calculation Error");
       }
     }
-  }
+  };
 
   const handleReset = () => {
-    setInputNumbers('')
-    setChiResult(null)
-    setDepResult(null)
-    setError(null)
-    setSelectedInterval(null)
+    setInputNumbers("");
+    setChiResult(null);
+    setDepResult(null);
+    setError(null);
+    setSelectedInterval(null);
     // Optional: Reset params too? Or keep them? Usually reset clears everything.
-    setKStr('')
+    setKStr("");
     // setLagStr removed
-    setAlphaStr('')
-  }
+    setAlphaStr("");
+  };
 
   // Helper to get numbers in a specific interval for display
-  const getNumbersInInterval = (start: number, end: number, isLast: boolean) => {
-    const numbers = inputNumbers.split(/[\s,]+/).filter(s => s.trim() !== '').map(Number);
-    return numbers.filter(n => n >= start && (isLast ? n <= end : n < end));
-  }
+  const getNumbersInInterval = (
+    start: number,
+    end: number,
+    isLast: boolean
+  ) => {
+    const numbers = inputNumbers
+      .split(/[\s,]+/)
+      .filter((s) => s.trim() !== "")
+      .map(Number);
+    return numbers.filter((n) => n >= start && (isLast ? n <= end : n < end));
+  };
 
   // Pre-calculate count for hint
-  const count = inputNumbers.split(/[\s,]+/).filter(s => s.trim() !== '').length
+  const count = inputNumbers
+    .split(/[\s,]+/)
+    .filter((s) => s.trim() !== "").length;
 
   return (
     <main className="page detail">
-      <Link to="/" className="back-link">← Back to home</Link>
+      <Link to="/" className="back-link">
+        ← Back to home
+      </Link>
 
       <div className="header-section">
         <h1>Test Random Numbers</h1>
-        <p className="subtitle">Verify the quality of your random number generator using statistical methods.</p>
+        <p className="subtitle">
+          Verify the quality of your random number generator using statistical
+          methods.
+        </p>
 
         <div className="tabs">
           <button
-            className={`tab ${method === 'chi' ? 'active' : ''}`}
-            onClick={() => { setMethod('chi'); setChiResult(null); setDepResult(null); setSelectedInterval(null); }}
+            className={`tab ${method === "chi" ? "active" : ""}`}
+            onClick={() => {
+              setMethod("chi");
+              setChiResult(null);
+              setDepResult(null);
+              setSelectedInterval(null);
+            }}
           >
             Uniformity (Chi-Square)
           </button>
           <button
-            className={`tab ${method === 'dep' ? 'active' : ''}`}
-            onClick={() => { setMethod('dep'); setChiResult(null); setDepResult(null); setSelectedInterval(null); }}
+            className={`tab ${method === "dep" ? "active" : ""}`}
+            onClick={() => {
+              setMethod("dep");
+              setChiResult(null);
+              setDepResult(null);
+              setSelectedInterval(null);
+            }}
           >
             Independence (Auto-Correlation)
           </button>
@@ -137,40 +167,36 @@ export function TestRandomNumbersPage() {
               <input
                 type="checkbox"
                 checked={eduMode}
-                onChange={e => setEduMode(e.target.checked)}
+                onChange={(e) => setEduMode(e.target.checked)}
               />
               <span className="slider">Exam Mode</span>
             </label>
           </div>
 
-          <div className="control-group">
-            <label>Random Numbers (0-1)</label>
-            <textarea
-              className="code-input"
-              value={inputNumbers}
-              onChange={e => setInputNumbers(e.target.value)}
-              placeholder="0.12, 0.45, 0.88..."
-              rows={12}
-            />
-            <div className="field-hint">{count} numbers entered</div>
-          </div>
+          <RngInput
+            label="Random Numbers (0-1)"
+            value={inputNumbers}
+            onChange={setInputNumbers}
+            scale={1}
+            defaultCount={10}
+          />
+          <div className="field-hint">{count} numbers entered</div>
 
           <div className="params-row">
-            {method === 'chi' ? (
+            {method === "chi" ? (
               <div className="control-group">
                 <label>Intervals (k)</label>
                 <input
                   type="number"
                   value={kStr}
-                  onChange={e => setKStr(e.target.value)}
+                  onChange={(e) => setKStr(e.target.value)}
                   min={1}
                   placeholder="e.g. 5"
                 />
               </div>
-            ) : (
-              null
-              /* method === 'dep' -> No specific inputs (Lag/Alpha ignored/hidden for this visual test) */
-            )}
+            ) : null
+            /* method === 'dep' -> No specific inputs (Lag/Alpha ignored/hidden for this visual test) */
+            }
 
             {/* Show Alpha input for BOTH now */}
             <div className="control-group">
@@ -178,7 +204,7 @@ export function TestRandomNumbersPage() {
               <input
                 type="number"
                 value={alphaStr}
-                onChange={e => setAlphaStr(e.target.value)}
+                onChange={(e) => setAlphaStr(e.target.value)}
                 step={0.01}
                 placeholder="Default: 0.05"
               />
@@ -186,8 +212,12 @@ export function TestRandomNumbersPage() {
           </div>
 
           <div className="actions">
-            <button className="primary-btn" onClick={handleRun}>Run Analysis</button>
-            <button className="secondary-btn" onClick={handleReset}>Reset</button>
+            <button className="primary-btn" onClick={handleRun}>
+              Run Analysis
+            </button>
+            <button className="secondary-btn" onClick={handleReset}>
+              Reset
+            </button>
           </div>
 
           {error && <div className="alert error">{error}</div>}
@@ -195,12 +225,14 @@ export function TestRandomNumbersPage() {
 
         {/* RESULTS PANEL */}
         <div className="results-panel">
-
           {!chiResult && !depResult && (
             <div className="placeholder-state">
               <div className="placeholder-icon">📊</div>
               <h3>Ready to Analyze</h3>
-              <p>Enter your random numbers on the left and click "Run Analysis" to see the results here.</p>
+              <p>
+                Enter your random numbers on the left and click "Run Analysis"
+                to see the results here.
+              </p>
             </div>
           )}
 
@@ -208,11 +240,25 @@ export function TestRandomNumbersPage() {
           {chiResult && (
             <div className="result-with-aside">
               <div className="result-content-main">
-                <div className={`result-banner ${chiResult.isUniform ? 'success' : 'failure'}`}>
-                  <div className="banner-icon">{chiResult.isUniform ? '✅' : '❌'}</div>
+                <div
+                  className={`result-banner ${
+                    chiResult.isUniform ? "success" : "failure"
+                  }`}
+                >
+                  <div className="banner-icon">
+                    {chiResult.isUniform ? "✅" : "❌"}
+                  </div>
                   <div className="banner-content">
-                    <h3>{chiResult.isUniform ? 'Hypothesis Accepted' : 'Hypothesis Rejected'}</h3>
-                    <p>{chiResult.isUniform ? 'The numbers are Uniformly Distributed.' : 'The numbers are NOT Uniformly Distributed.'}</p>
+                    <h3>
+                      {chiResult.isUniform
+                        ? "Hypothesis Accepted"
+                        : "Hypothesis Rejected"}
+                    </h3>
+                    <p>
+                      {chiResult.isUniform
+                        ? "The numbers are Uniformly Distributed."
+                        : "The numbers are NOT Uniformly Distributed."}
+                    </p>
                   </div>
                 </div>
 
@@ -220,10 +266,19 @@ export function TestRandomNumbersPage() {
                   <div className="edu-card">
                     <h4>🎓 Exam Explanation</h4>
                     <p>
-                      <strong>Hypothesis:</strong> H₀: Uniform Distribution. H₁: Not Uniform.<br />
-                      <strong>Calculations:</strong> With <em>N={chiResult.N}</em> and <em>k={chiResult.k}</em>, we calculated χ²₀ = {chiResult.chiStat.toFixed(4)}.<br />
-                      <strong>Decision:</strong> The critical values for α={chiResult.alpha} and df={chiResult.dof} is {chiResult.criticalValue.toFixed(3)}.<br />
-                      Since {chiResult.chiStat.toFixed(4)} {chiResult.isUniform ? '<' : '>'} {chiResult.criticalValue.toFixed(3)}, we {chiResult.isUniform ? 'Fail to Reject' : 'Reject'} H₀.
+                      <strong>Hypothesis:</strong> H₀: Uniform Distribution. H₁:
+                      Not Uniform.
+                      <br />
+                      <strong>Calculations:</strong> With{" "}
+                      <em>N={chiResult.N}</em> and <em>k={chiResult.k}</em>, we
+                      calculated χ²₀ = {chiResult.chiStat.toFixed(4)}.<br />
+                      <strong>Decision:</strong> The critical values for α=
+                      {chiResult.alpha} and df={chiResult.dof} is{" "}
+                      {chiResult.criticalValue.toFixed(3)}.<br />
+                      Since {chiResult.chiStat.toFixed(4)}{" "}
+                      {chiResult.isUniform ? "<" : ">"}{" "}
+                      {chiResult.criticalValue.toFixed(3)}, we{" "}
+                      {chiResult.isUniform ? "Fail to Reject" : "Reject"} H₀.
                     </p>
                   </div>
                 )}
@@ -235,7 +290,9 @@ export function TestRandomNumbersPage() {
                   </div>
                   <div className="stat-box">
                     <label>Critical Value</label>
-                    <div className="value">{chiResult.criticalValue.toFixed(1)}</div>
+                    <div className="value">
+                      {chiResult.criticalValue.toFixed(1)}
+                    </div>
                   </div>
                 </div>
 
@@ -256,20 +313,26 @@ export function TestRandomNumbersPage() {
                           const isLast = i === chiResult.intervals.length - 1;
                           const rangeLabel = isLast
                             ? `[${row.start.toFixed(2)}, ${row.end.toFixed(2)}]`
-                            : `[${row.start.toFixed(2)}, ${row.end.toFixed(2)})`;
+                            : `[${row.start.toFixed(2)}, ${row.end.toFixed(
+                                2
+                              )})`;
 
                           return (
                             <tr
                               key={i}
                               onClick={() => setSelectedInterval(i)}
-                              className={selectedInterval === i ? 'selected-row' : 'clickable-row'}
+                              className={
+                                selectedInterval === i
+                                  ? "selected-row"
+                                  : "clickable-row"
+                              }
                             >
                               <td>{rangeLabel}</td>
                               <td>{row.oi}</td>
                               <td>{row.ei.toFixed(2)}</td>
                               <td>{row.chiPart.toFixed(4)}</td>
                             </tr>
-                          )
+                          );
                         })}
                       </tbody>
                     </table>
@@ -282,7 +345,7 @@ export function TestRandomNumbersPage() {
                           chiResult.intervals[selectedInterval].start,
                           chiResult.intervals[selectedInterval].end,
                           selectedInterval === chiResult.intervals.length - 1
-                        ).join(', ')}
+                        ).join(", ")}
                       </div>
                     </div>
                   )}
@@ -292,7 +355,11 @@ export function TestRandomNumbersPage() {
               <aside className="result-aside">
                 <div className="reference-card">
                   <h4>Reference Table</h4>
-                  <img src="/assets/chi_square_table.png" alt="Chi-Square Table" className="ref-img" />
+                  <img
+                    src="/assets/chi_square_table.png"
+                    alt="Chi-Square Table"
+                    className="ref-img"
+                  />
                 </div>
               </aside>
             </div>
@@ -305,11 +372,16 @@ export function TestRandomNumbersPage() {
                 <div className="edu-card">
                   <h4>🎓 Exam Procedure</h4>
                   <p>
-                    <strong>Method:</strong> Z-Test for Auto-Correlation.<br />
-                    <strong>Formula:</strong> Z = r_xx(k) / σ where σ ≈ 1/√N<br />
-                    <strong>Calculations:</strong> N={depResult.N}, SE={(1 / Math.sqrt(depResult.N)).toFixed(4)}.<br />
-                    <strong>Critical Value:</strong> Z({depResult.alpha}) = &plusmn;{depResult.zCritical.toFixed(4)}.<br />
-                    If any |Z| &gt; {depResult.zCritical.toFixed(4)}, the hypothesis of independence is rejected.
+                    <strong>Method:</strong> Z-Test for Auto-Correlation.
+                    <br />
+                    <strong>Formula:</strong> Z = r_xx(k) / σ where σ ≈ 1/√N
+                    <br />
+                    <strong>Calculations:</strong> N={depResult.N}, SE=
+                    {(1 / Math.sqrt(depResult.N)).toFixed(4)}.<br />
+                    <strong>Critical Value:</strong> Z({depResult.alpha}) =
+                    &plusmn;{depResult.zCritical.toFixed(4)}.<br />
+                    If any |Z| &gt; {depResult.zCritical.toFixed(4)}, the
+                    hypothesis of independence is rejected.
                   </p>
                 </div>
               )}
@@ -327,8 +399,11 @@ export function TestRandomNumbersPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {depResult.correlations.map(row => (
-                        <tr key={row.k} className={row.isSignificant ? 'row-failure' : ''}>
+                      {depResult.correlations.map((row) => (
+                        <tr
+                          key={row.k}
+                          className={row.isSignificant ? "row-failure" : ""}
+                        >
                           <td>{row.k}</td>
                           <td>{row.value.toFixed(6)}</td>
                           <td>{row.zStatistic.toFixed(4)}</td>
@@ -349,10 +424,12 @@ export function TestRandomNumbersPage() {
               <div className="result-inference-box">
                 <div className="result-metrics">
                   <div className="metric">
-                    Avg(|r_xx(k)|) = <strong>{depResult.avgAbsCorrelation.toFixed(6)}</strong>
+                    Avg(|r_xx(k)|) ={" "}
+                    <strong>{depResult.avgAbsCorrelation.toFixed(6)}</strong>
                   </div>
                   <div className="metric">
-                    Z<sub>critical</sub> = <strong>{depResult.zCritical.toFixed(4)}</strong>
+                    Z<sub>critical</sub> ={" "}
+                    <strong>{depResult.zCritical.toFixed(4)}</strong>
                   </div>
                 </div>
 
@@ -361,7 +438,9 @@ export function TestRandomNumbersPage() {
                     <span className="status-icon">⚠️</span>
                     <div>
                       <strong>DEPENDENT</strong>
-                      <div className="micro-text">One or more lags exceeded Z-critical.</div>
+                      <div className="micro-text">
+                        One or more lags exceeded Z-critical.
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -369,18 +448,21 @@ export function TestRandomNumbersPage() {
                     <span className="status-icon">✅</span>
                     <div>
                       <strong>INDEPENDENT</strong>
-                      <div className="micro-text">All lags within Z-critical range.</div>
+                      <div className="micro-text">
+                        All lags within Z-critical range.
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
               <div className="result-message-simple">
-                {depResult.isIndependent ? "You can indicate independence" : "You can indicate dependence"}
+                {depResult.isIndependent
+                  ? "You can indicate independence"
+                  : "You can indicate dependence"}
               </div>
             </>
           )}
-
         </div>
       </div>
 
@@ -692,5 +774,5 @@ export function TestRandomNumbersPage() {
         }
       `}</style>
     </main>
-  )
+  );
 }
