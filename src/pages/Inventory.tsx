@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DistributionTable, type CumulativeRow, type DistRow } from '../components/DistributionTable'
+import { RngInput } from '../components/RngInput'
+import { exportToPdf } from '../utils/export'
 
 type SimulationRow = {
   cycle: number
@@ -56,7 +58,7 @@ function mapRandomToValue(rand: number, ranges: CumulativeRow[], scale: number =
   return ranges.find((r) => normalized >= r.rangeStart && normalized <= r.rangeEnd)?.value ?? null
 }
 
-function toCsv(rows: SimulationRow[]) {
+function toCsv(rows: SimulationRow[], totals?: any) {
   const header = [
     'Cycle',
     'Day',
@@ -85,7 +87,17 @@ function toCsv(rows: SimulationRow[]) {
       ].join(','),
     )
     .join('\n')
-  return [header.join(','), body].join('\n')
+
+  let csv = [header.join(','), body].join('\n')
+
+  if (totals) {
+    csv += '\n\nPerformance Analysis\n'
+    csv += `Average Ending Inventory,${totals.avgEndingInventory.toFixed(2)}\n`
+    csv += `Shortage Days,${totals.shortageDays}\n`
+    csv += `Shortage Probability,${(totals.shortageProbability * 100).toFixed(2)}%\n`
+  }
+
+  return csv
 }
 
 function useDistributionState(initial: DistRow[]) {
@@ -393,15 +405,51 @@ export function InventoryPage() {
     setSimRows(table)
   }
 
-  const handleDownload = () => {
+  const handleDownloadCsv = () => {
     if (!simRows.length) return
-    const blob = new Blob([toCsv(simRows)], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([toCsv(simRows, totals)], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = 'inventory-simulation.csv'
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPdf = () => {
+    if (!simRows.length || !totals) return
+    const headers = [
+      'Cyc',
+      'Day',
+      'Beg Inv',
+      'Dem Dig',
+      'Dem',
+      'End Inv',
+      'Short',
+      'Ord Qty',
+      'LT Dig',
+      'Days Arr',
+    ]
+    const body = simRows.map((r) => [
+      r.cycle,
+      r.day,
+      r.beginningInventory,
+      r.randDemand,
+      r.demand,
+      r.endingInventory,
+      r.shortage,
+      r.orderQuantity ?? '-',
+      r.randLeadTime ?? '-',
+      r.daysUntilArrival ?? '-',
+    ])
+
+    const pdfSummary = {
+      'Average Ending Inventory': totals.avgEndingInventory.toFixed(2),
+      'Shortage Days': totals.shortageDays.toString(),
+      'Shortage Probability': `${(totals.shortageProbability * 100).toFixed(2)}%`,
+    }
+
+    exportToPdf('inventory-simulation', 'Inventory Simulation', headers, body, pdfSummary)
   }
 
   const totals = useMemo(() => {
@@ -580,24 +628,18 @@ export function InventoryPage() {
         </div>
 
         <div className="input-grid slim">
-          <label className="stacked">
-            <span>Random digits (demand) - 00 to 99</span>
-            <input
-              type="text"
-              value={demandDigits}
-              onChange={(e) => setDemandDigits(e.target.value)}
-              placeholder="Comma or space separated, e.g. 24,35,65,81,54"
-            />
-          </label>
-          <label className="stacked">
-            <span>Random digits (lead time) - 0 to 9</span>
-            <input
-              type="text"
-              value={leadTimeDigits}
-              onChange={(e) => setLeadTimeDigits(e.target.value)}
-              placeholder="Comma or space separated, e.g. 5,0,3,4,8"
-            />
-          </label>
+          <RngInput
+            label="Random digits (demand) - 00 to 99"
+            value={demandDigits}
+            onChange={setDemandDigits}
+            scale={100}
+          />
+          <RngInput
+            label="Random digits (lead time) - 0 to 9"
+            value={leadTimeDigits}
+            onChange={setLeadTimeDigits}
+            scale={10}
+          />
         </div>
       </section>
 
@@ -625,8 +667,11 @@ export function InventoryPage() {
         <div className="panel-header">
           <h2 style={{ marginRight: '24px' }}>Simulation Table ({numCycles} Cycles)</h2>
           <div className="panel-actions">
-            <button className="secondary" disabled={!simRows.length} onClick={handleDownload}>
+            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadCsv}>
               Download CSV
+            </button>
+            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadPdf}>
+              Download PDF
             </button>
           </div>
         </div>

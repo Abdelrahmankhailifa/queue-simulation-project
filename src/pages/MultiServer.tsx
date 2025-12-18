@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DistributionTable, type CumulativeRow, type DistRow } from '../components/DistributionTable'
+import { RngInput } from '../components/RngInput'
+import { exportToPdf } from '../utils/export'
 
 type SimulationRow = {
   customer: number
@@ -60,7 +62,7 @@ function mapRandomToValue(rand: number, ranges: CumulativeRow[]) {
   return ranges.find((r) => normalized >= r.rangeStart && normalized <= r.rangeEnd)?.value ?? null
 }
 
-function toCsv(rows: SimulationRow[]) {
+function toCsv(rows: SimulationRow[], summary?: any) {
   const header = [
     'Customer No.',
     'Random Digits for Arrival',
@@ -93,7 +95,21 @@ function toCsv(rows: SimulationRow[]) {
       ].join(','),
     )
     .join('\n')
-  return [header.join(','), body].join('\n')
+
+  let csv = [header.join(','), body].join('\n')
+
+  if (summary) {
+    csv += '\n\nPerformance Analysis\n'
+    csv += `Avg waiting,${summary.avgWaiting.toFixed(2)}\n`
+    csv += `Avg service (Server 1),${summary.avgService1.toFixed(2)}\n`
+    csv += `Avg service (Server 2),${summary.avgService2.toFixed(2)}\n`
+    csv += `Server 1 idle %,${summary.idlePercent1.toFixed(1)}%\n`
+    csv += `Server 2 idle %,${summary.idlePercent2.toFixed(1)}%\n`
+    csv += `Server 1 utilization,${summary.utilization1.toFixed(1)}%\n`
+    csv += `Server 2 utilization,${summary.utilization2.toFixed(1)}%\n`
+  }
+
+  return csv
 }
 
 function useDistributionState(initial: DistRow[]) {
@@ -133,7 +149,7 @@ export function MultiServerPage() {
 
   const [arrivalDigits, setArrivalDigits] = useState('15,64,12,87,34,56,90,10')
   const [serviceDigits, setServiceDigits] = useState('05,44,70,22,91,39,60,08')
-  const [customerCount, setCustomerCount] = useState(10)
+  const [customerCount, setCustomerCount] = useState(8)
 
   const [arrivalTable, setArrivalTable] = useState<CumulativeRow[]>([])
   const [service1Table, setService1Table] = useState<CumulativeRow[]>([])
@@ -149,7 +165,7 @@ export function MultiServerPage() {
     const totalService2 = simRows.reduce((acc, r) => acc + (r.serviceStart2 !== null ? (r.service2 ?? 0) : 0), 0)
     const totalIdle1 = simRows.reduce((acc, r) => acc + Math.max(r.idle1, 0), 0)
     const totalIdle2 = simRows.reduce((acc, r) => acc + Math.max(r.idle2, 0), 0)
-    
+
     // Find the last service end time from either server
     const lastEnd1 = simRows.length > 0 ? Math.max(...simRows.map(r => r.serviceEnd1 ?? 0)) : 0
     const lastEnd2 = simRows.length > 0 ? Math.max(...simRows.map(r => r.serviceEnd2 ?? 0)) : 0
@@ -157,7 +173,7 @@ export function MultiServerPage() {
 
     const service1Count = simRows.filter(r => r.serviceStart1 !== null).length
     const service2Count = simRows.filter(r => r.serviceStart2 !== null).length
-    
+
     return {
       avgWaiting: totalWaiting / simRows.length,
       avgService1: service1Count > 0 ? totalService1 / service1Count : 0,
@@ -405,15 +421,53 @@ export function MultiServerPage() {
     setSimRows(table)
   }
 
-  const handleDownload = () => {
+  const handleDownloadCsv = () => {
     if (!simRows.length) return
-    const blob = new Blob([toCsv(simRows)], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([toCsv(simRows, summary)], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = 'multi-server-simulation.csv'
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPdf = () => {
+    if (!simRows.length || !summary) return
+    const headers = [
+      'Cust #',
+      'Arr.',
+      'S1 Start',
+      'S1 Svc',
+      'S1 End',
+      'S2 Start',
+      'S2 Svc',
+      'S2 End',
+      'Wait',
+    ]
+    const body = simRows.map((r) => [
+      r.customer,
+      r.arrival,
+      r.serviceStart1 ?? '-',
+      r.service1 ?? '-',
+      r.serviceEnd1 ?? '-',
+      r.serviceStart2 ?? '-',
+      r.service2 ?? '-',
+      r.serviceEnd2 ?? '-',
+      r.waiting,
+    ])
+
+    const pdfSummary = {
+      'Avg waiting': summary.avgWaiting.toFixed(2),
+      'Avg service (Server 1)': summary.avgService1.toFixed(2),
+      'Avg service (Server 2)': summary.avgService2.toFixed(2),
+      'Server 1 idle %': `${summary.idlePercent1.toFixed(1)}%`,
+      'Server 2 idle %': `${summary.idlePercent2.toFixed(1)}%`,
+      'Server 1 utilization': `${summary.utilization1.toFixed(1)}%`,
+      'Server 2 utilization': `${summary.utilization2.toFixed(1)}%`,
+    }
+
+    exportToPdf('multi-server-simulation', 'Multi-Server Queue Simulation', headers, body, pdfSummary)
   }
 
   return (
@@ -475,24 +529,18 @@ export function MultiServerPage() {
         </div>
 
         <div className="input-grid slim">
-          <label className="stacked">
-            <span>Random digits (arrival)</span>
-            <input
-              type="text"
-              value={arrivalDigits}
-              onChange={(e) => setArrivalDigits(e.target.value)}
-              placeholder="Comma or space separated, e.g. 12,45,78"
-            />
-          </label>
-          <label className="stacked">
-            <span>Random digits (service)</span>
-            <input
-              type="text"
-              value={serviceDigits}
-              onChange={(e) => setServiceDigits(e.target.value)}
-              placeholder="Comma or space separated, e.g. 34,90,12"
-            />
-          </label>
+          <RngInput
+            label="Random digits (arrival)"
+            value={arrivalDigits}
+            onChange={setArrivalDigits}
+            scale={100}
+          />
+          <RngInput
+            label="Random digits (service)"
+            value={serviceDigits}
+            onChange={setServiceDigits}
+            scale={100}
+          />
           <label className="stacked narrow">
             <span>Number of customers</span>
             <input
@@ -518,8 +566,11 @@ export function MultiServerPage() {
         <div className="panel-header">
           <h2>Main Simulation Table</h2>
           <div className="panel-actions">
-            <button className="secondary" disabled={!simRows.length} onClick={handleDownload}>
+            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadCsv}>
               Download CSV
+            </button>
+            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadPdf}>
+              Download PDF
             </button>
           </div>
         </div>

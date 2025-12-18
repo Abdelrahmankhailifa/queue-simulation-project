@@ -122,7 +122,7 @@ export function calculateChiSquare(numbers: number[], k: number, alpha: number):
         intervals.push({ start, end, oi, ei: Ei, chiPart })
     }
 
-    const dof = k - 1
+    const dof = k
     const criticalValue = getChiSquareCriticalValue(dof, alpha)
 
     const isUniform = chiStat < criticalValue

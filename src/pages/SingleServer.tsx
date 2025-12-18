@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DistributionTable, type CumulativeRow, type DistRow } from '../components/DistributionTable'
+import { RngInput } from '../components/RngInput'
+import { exportToPdf } from '../utils/export'
 
 type SimulationRow = {
   customer: number
@@ -55,7 +57,7 @@ function mapRandomToValue(rand: number, ranges: CumulativeRow[]) {
   return ranges.find((r) => normalized >= r.rangeStart && normalized <= r.rangeEnd)?.value ?? null
 }
 
-function toCsv(rows: SimulationRow[]) {
+function toCsv(rows: SimulationRow[], summary?: any) {
   const header = [
     'Cust #',
     'Rand Arrival',
@@ -86,7 +88,18 @@ function toCsv(rows: SimulationRow[]) {
       ].join(','),
     )
     .join('\n')
-  return [header.join(','), body].join('\n')
+
+  let csv = [header.join(','), body].join('\n')
+
+  if (summary) {
+    csv += '\n\nPerformance Analysis\n'
+    csv += `Avg waiting,${summary.avgWaiting.toFixed(2)}\n`
+    csv += `Avg service,${summary.avgService.toFixed(2)}\n`
+    csv += `Server idle %,${summary.idlePercent.toFixed(1)}%\n`
+    csv += `Utilization,${summary.utilization.toFixed(1)}%\n`
+  }
+
+  return csv
 }
 
 function useDistributionState(initial: DistRow[]) {
@@ -121,7 +134,7 @@ export function SingleServerPage() {
 
   const [arrivalDigits, setArrivalDigits] = useState('15,64,12,87,34,56,90,10')
   const [serviceDigits, setServiceDigits] = useState('05,44,70,22,91,39,60,08')
-  const [customerCount, setCustomerCount] = useState(10)
+  const [customerCount, setCustomerCount] = useState(8)
 
   const [arrivalTable, setArrivalTable] = useState<CumulativeRow[]>([])
   const [serviceTable, setServiceTable] = useState<CumulativeRow[]>([])
@@ -269,15 +282,50 @@ export function SingleServerPage() {
     setSimRows(table)
   }
 
-  const handleDownload = () => {
+  const handleDownloadCsv = () => {
     if (!simRows.length) return
-    const blob = new Blob([toCsv(simRows)], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([toCsv(simRows, summary)], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = 'single-server-simulation.csv'
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPdf = () => {
+    if (!simRows.length || !summary) return
+    const headers = [
+      'Cust #',
+      'Interarrival',
+      'Arrival',
+      'Service',
+      'S. Start',
+      'S. End',
+      'Waiting',
+      'Idle',
+      'Time in Sys',
+    ]
+    const body = simRows.map((r) => [
+      r.customer,
+      r.interarrival,
+      r.arrival,
+      r.service,
+      r.serviceStart,
+      r.serviceEnd,
+      r.waiting,
+      r.idle,
+      r.timeInSystem,
+    ])
+
+    const pdfSummary = {
+      'Avg waiting': summary.avgWaiting.toFixed(2),
+      'Avg service': summary.avgService.toFixed(2),
+      'Server idle %': `${summary.idlePercent.toFixed(1)}%`,
+      'Utilization %': `${summary.utilization.toFixed(1)}%`,
+    }
+
+    exportToPdf('single-server-simulation', 'Single-Server Queue Simulation', headers, body, pdfSummary)
   }
 
   return (
@@ -327,24 +375,18 @@ export function SingleServerPage() {
         </div>
 
         <div className="input-grid slim">
-          <label className="stacked">
-            <span>Random digits (arrival)</span>
-            <input
-              type="text"
-              value={arrivalDigits}
-              onChange={(e) => setArrivalDigits(e.target.value)}
-              placeholder="Comma or space separated, e.g. 12,45,78"
-            />
-          </label>
-          <label className="stacked">
-            <span>Random digits (service)</span>
-            <input
-              type="text"
-              value={serviceDigits}
-              onChange={(e) => setServiceDigits(e.target.value)}
-              placeholder="Comma or space separated, e.g. 34,90,12"
-            />
-          </label>
+          <RngInput
+            label="Random digits (arrival)"
+            value={arrivalDigits}
+            onChange={setArrivalDigits}
+            scale={100}
+          />
+          <RngInput
+            label="Random digits (service)"
+            value={serviceDigits}
+            onChange={setServiceDigits}
+            scale={100}
+          />
           <label className="stacked narrow">
             <span>Number of customers</span>
             <input
@@ -370,8 +412,11 @@ export function SingleServerPage() {
         <div className="panel-header">
           <h2>Main Simulation Table</h2>
           <div className="panel-actions">
-            <button className="secondary" disabled={!simRows.length} onClick={handleDownload}>
+            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadCsv}>
               Download CSV
+            </button>
+            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadPdf}>
+              Download PDF
             </button>
           </div>
         </div>

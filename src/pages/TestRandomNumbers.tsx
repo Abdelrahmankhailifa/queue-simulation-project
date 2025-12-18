@@ -206,91 +206,96 @@ export function TestRandomNumbersPage() {
 
           {/* CHI SQUARE RESULTS */}
           {chiResult && (
-            <>
-              <div className={`result-banner ${chiResult.isUniform ? 'success' : 'failure'}`}>
-                <div className="banner-icon">{chiResult.isUniform ? '✅' : '❌'}</div>
-                <div className="banner-content">
-                  <h3>{chiResult.isUniform ? 'Hypothesis Accepted' : 'Hypothesis Rejected'}</h3>
-                  <p>{chiResult.isUniform ? 'The numbers are Uniformly Distributed.' : 'The numbers are NOT Uniformly Distributed.'}</p>
+            <div className="result-with-aside">
+              <div className="result-content-main">
+                <div className={`result-banner ${chiResult.isUniform ? 'success' : 'failure'}`}>
+                  <div className="banner-icon">{chiResult.isUniform ? '✅' : '❌'}</div>
+                  <div className="banner-content">
+                    <h3>{chiResult.isUniform ? 'Hypothesis Accepted' : 'Hypothesis Rejected'}</h3>
+                    <p>{chiResult.isUniform ? 'The numbers are Uniformly Distributed.' : 'The numbers are NOT Uniformly Distributed.'}</p>
+                  </div>
                 </div>
-              </div>
 
-              {eduMode && (
-                <div className="edu-card">
-                  <h4>🎓 Exam Explanation</h4>
-                  <p>
-                    <strong>Hypothesis:</strong> H₀: Uniform Distribution. H₁: Not Uniform.<br />
-                    <strong>Calculations:</strong> With <em>N={chiResult.N}</em> and <em>k={chiResult.k}</em>, we calculated χ²₀ = {chiResult.chiStat.toFixed(4)}.<br />
-                    <strong>Decision:</strong> The critical values for α={chiResult.alpha} and df={chiResult.dof} is {chiResult.criticalValue.toFixed(3)}.<br />
-                    Since {chiResult.chiStat.toFixed(4)} {chiResult.isUniform ? '<' : '>'} {chiResult.criticalValue.toFixed(3)}, we {chiResult.isUniform ? 'Fail to Reject' : 'Reject'} H₀.
-                  </p>
-                </div>
-              )}
-
-              <div className="stats-grid">
-                <div className="stat-box">
-                  <label>Calculated χ²</label>
-                  <div className="value">{chiResult.chiStat.toFixed(4)}</div>
-                </div>
-                <div className="stat-box">
-                  <label>Critical Value</label>
-                  <div className="value">{chiResult.criticalValue.toFixed(4)}</div>
-                </div>
-                <div className="stat-box">
-                  <label>P-Value (Approx)</label>
-                  <div className="value muted">N/A</div>
-                </div>
-              </div>
-
-              <div className="table-card">
-                <h3>Interval Breakdown (Click row to see numbers)</h3>
-                <div className="table-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Range [Start, End)</th>
-                        <th>Observed (O)</th>
-                        <th>Expected (E)</th>
-                        <th>(O-E)²/E</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chiResult.intervals.map((row, i) => {
-                        const isLast = i === chiResult.intervals.length - 1;
-                        const rangeLabel = isLast
-                          ? `[${row.start.toFixed(2)}, ${row.end.toFixed(2)}]`
-                          : `[${row.start.toFixed(2)}, ${row.end.toFixed(2)})`;
-
-                        return (
-                          <tr
-                            key={i}
-                            onClick={() => setSelectedInterval(i)}
-                            className={selectedInterval === i ? 'selected-row' : 'clickable-row'}
-                          >
-                            <td>{rangeLabel}</td>
-                            <td>{row.oi}</td>
-                            <td>{row.ei.toFixed(2)}</td>
-                            <td>{row.chiPart.toFixed(4)}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {selectedInterval !== null && (
-                  <div className="interval-details">
-                    <h4>Numbers in Interval {selectedInterval + 1}</h4>
-                    <div className="number-list">
-                      {getNumbersInInterval(
-                        chiResult.intervals[selectedInterval].start,
-                        chiResult.intervals[selectedInterval].end,
-                        selectedInterval === chiResult.intervals.length - 1
-                      ).join(', ')}
-                    </div>
+                {eduMode && (
+                  <div className="edu-card">
+                    <h4>🎓 Exam Explanation</h4>
+                    <p>
+                      <strong>Hypothesis:</strong> H₀: Uniform Distribution. H₁: Not Uniform.<br />
+                      <strong>Calculations:</strong> With <em>N={chiResult.N}</em> and <em>k={chiResult.k}</em>, we calculated χ²₀ = {chiResult.chiStat.toFixed(4)}.<br />
+                      <strong>Decision:</strong> The critical values for α={chiResult.alpha} and df={chiResult.dof} is {chiResult.criticalValue.toFixed(3)}.<br />
+                      Since {chiResult.chiStat.toFixed(4)} {chiResult.isUniform ? '<' : '>'} {chiResult.criticalValue.toFixed(3)}, we {chiResult.isUniform ? 'Fail to Reject' : 'Reject'} H₀.
+                    </p>
                   </div>
                 )}
+
+                <div className="stats-grid">
+                  <div className="stat-box">
+                    <label>Calculated χ²</label>
+                    <div className="value">{chiResult.chiStat.toFixed(4)}</div>
+                  </div>
+                  <div className="stat-box">
+                    <label>Critical Value</label>
+                    <div className="value">{chiResult.criticalValue.toFixed(1)}</div>
+                  </div>
+                </div>
+
+                <div className="table-card">
+                  <h3>Interval Breakdown (Click row to see numbers)</h3>
+                  <div className="table-wrapper">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Range [Start, End)</th>
+                          <th>Observed (O)</th>
+                          <th>Expected (E)</th>
+                          <th>(O-E)²/E</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {chiResult.intervals.map((row, i) => {
+                          const isLast = i === chiResult.intervals.length - 1;
+                          const rangeLabel = isLast
+                            ? `[${row.start.toFixed(2)}, ${row.end.toFixed(2)}]`
+                            : `[${row.start.toFixed(2)}, ${row.end.toFixed(2)})`;
+
+                          return (
+                            <tr
+                              key={i}
+                              onClick={() => setSelectedInterval(i)}
+                              className={selectedInterval === i ? 'selected-row' : 'clickable-row'}
+                            >
+                              <td>{rangeLabel}</td>
+                              <td>{row.oi}</td>
+                              <td>{row.ei.toFixed(2)}</td>
+                              <td>{row.chiPart.toFixed(4)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {selectedInterval !== null && (
+                    <div className="interval-details">
+                      <h4>Numbers in Interval {selectedInterval + 1}</h4>
+                      <div className="number-list">
+                        {getNumbersInInterval(
+                          chiResult.intervals[selectedInterval].start,
+                          chiResult.intervals[selectedInterval].end,
+                          selectedInterval === chiResult.intervals.length - 1
+                        ).join(', ')}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </>
+
+              <aside className="result-aside">
+                <div className="reference-card">
+                  <h4>Reference Table</h4>
+                  <img src="/assets/chi_square_table.png" alt="Chi-Square Table" className="ref-img" />
+                </div>
+              </aside>
+            </div>
           )}
 
           {/* DEPENDENCY RESULTS */}
@@ -639,6 +644,52 @@ export function TestRandomNumbersPage() {
             color: #991b1b;
         }
         .micro-text { font-size: 12px; font-weight: normal; opacity: 0.8; }
+
+        .result-with-aside {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+        .result-content-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .result-aside {
+            width: 450px;
+            position: sticky;
+            top: 24px;
+        }
+        .reference-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .reference-card h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .ref-img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 1200px) {
+            .result-with-aside {
+                flex-direction: column;
+            }
+            .result-aside {
+                width: 100%;
+                position: static;
+            }
+        }
       `}</style>
     </main>
   )
