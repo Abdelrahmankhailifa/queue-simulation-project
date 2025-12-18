@@ -62,7 +62,7 @@ function mapRandomToValue(rand: number, ranges: CumulativeRow[]) {
   return ranges.find((r) => normalized >= r.rangeStart && normalized <= r.rangeEnd)?.value ?? null
 }
 
-function toCsv(rows: SimulationRow[], summary?: any) {
+function toCsv(rows: SimulationRow[], summary?: { [key: string]: number }) {
   const header = [
     'Customer No.',
     'Random Digits for Arrival',
@@ -150,6 +150,7 @@ export function MultiServerPage() {
   const [arrivalDigits, setArrivalDigits] = useState('15,64,12,87,34,56,90,10')
   const [serviceDigits, setServiceDigits] = useState('05,44,70,22,91,39,60,08')
   const [customerCount, setCustomerCount] = useState(8)
+  const [priorityServer, setPriorityServer] = useState<1 | 2>(1)
 
   const [arrivalTable, setArrivalTable] = useState<CumulativeRow[]>([])
   const [service1Table, setService1Table] = useState<CumulativeRow[]>([])
@@ -324,29 +325,29 @@ export function MultiServerPage() {
       const server1Available = arrivalTime >= server1End
       const server2Available = arrivalTime >= server2End
 
-      // Get previous service end times for idle calculations
-      const prevServiceEnd1 = i === 0 ? 0 : (table[i - 1].serviceEnd1 ?? 0)
-      const prevServiceEnd2 = i === 0 ? 0 : (table[i - 1].serviceEnd2 ?? 0)
+      // Get the actual last end time for each server (when they were last busy)
+      const prevServer1End = server1End
+      const prevServer2End = server2End
 
       if (server1Available && server2Available) {
-        // Both servers are idle - choose the faster one (shorter service time)
-        if (serviceTime1 <= serviceTime2) {
+        // Both servers are idle - use priority server
+        if (priorityServer === 1) {
           serverUsed = 1
           serviceTime = serviceTime1
           serviceStart = arrivalTime
           serviceEnd = arrivalTime + serviceTime1
-          server1End = serviceEnd
-          idle1 = Math.max(0, arrivalTime - prevServiceEnd1)
+          idle1 = Math.max(0, arrivalTime - prevServer1End)
           idle2 = 0
+          server1End = serviceEnd
           waiting = 0
         } else {
           serverUsed = 2
           serviceTime = serviceTime2
           serviceStart = arrivalTime
           serviceEnd = arrivalTime + serviceTime2
-          server2End = serviceEnd
           idle1 = 0
-          idle2 = Math.max(0, arrivalTime - prevServiceEnd2)
+          idle2 = Math.max(0, arrivalTime - prevServer2End)
+          server2End = serviceEnd
           waiting = 0
         }
       } else if (server1Available) {
@@ -355,9 +356,9 @@ export function MultiServerPage() {
         serviceTime = serviceTime1
         serviceStart = arrivalTime
         serviceEnd = arrivalTime + serviceTime1
-        server1End = serviceEnd
-        idle1 = Math.max(0, arrivalTime - prevServiceEnd1)
+        idle1 = Math.max(0, arrivalTime - prevServer1End)
         idle2 = 0
+        server1End = serviceEnd
         waiting = 0
       } else if (server2Available) {
         // Server 2 is idle, use it
@@ -365,9 +366,9 @@ export function MultiServerPage() {
         serviceTime = serviceTime2
         serviceStart = arrivalTime
         serviceEnd = arrivalTime + serviceTime2
-        server2End = serviceEnd
         idle1 = 0
-        idle2 = Math.max(0, arrivalTime - prevServiceEnd2)
+        idle2 = Math.max(0, arrivalTime - prevServer2End)
+        server2End = serviceEnd
         waiting = 0
       } else {
         // Both servers are busy - wait for the one that becomes available first
@@ -423,7 +424,7 @@ export function MultiServerPage() {
 
   const handleDownloadCsv = () => {
     if (!simRows.length) return
-    const blob = new Blob([toCsv(simRows, summary)], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([toCsv(simRows, summary || {})], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -479,8 +480,8 @@ export function MultiServerPage() {
       <p className="detail-body">
         Configure arrival and service distributions for two servers, provide random digits, and run a
         discrete-event simulation. A single random number is used to look up service times in both
-        distributions, and the faster server is chosen when both are idle. When one server is busy,
-        customers use the idle server.
+        distributions. When both servers are idle, the <strong>priority server</strong> is chosen.
+        When one server is busy, customers use the idle server.
       </p>
 
       <section className="panel">
@@ -558,6 +559,16 @@ export function MultiServerPage() {
                 }
               }}
             />
+          </label>
+          <label className="stacked narrow">
+            <span>Priority Server</span>
+            <select
+              value={priorityServer}
+              onChange={(e) => setPriorityServer(Number(e.target.value) as 1 | 2)}
+            >
+              <option value={1}>Server 1</option>
+              <option value={2}>Server 2</option>
+            </select>
           </label>
         </div>
       </section>

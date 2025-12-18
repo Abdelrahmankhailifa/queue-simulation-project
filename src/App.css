@@ -57,7 +57,8 @@
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   text-decoration: none;
   color: inherit;
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease,
+    border-color 160ms ease;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -86,7 +87,7 @@
 }
 
 .detail {
-  max-width: 800px;
+  max-width: 90%;
 }
 
 .back-link {
@@ -146,7 +147,8 @@ button {
   background-color: #4338ca;
   color: #ffffff;
   cursor: pointer;
-  transition: background-color 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition: background-color 140ms ease, box-shadow 140ms ease,
+    border-color 140ms ease;
 }
 
 button:hover {
@@ -231,21 +233,21 @@ button:disabled {
 }
 
 .multi-server-table .table-row {
-  grid-template-columns: 
-    150px 
-    250px 
-    250px 
-    250px 
-    250px 
-    24px 
-    270px 
-    250px 
-    250px 
-    24px 
-    250px 
-    250px 
-    250px 
-    24px 
+  grid-template-columns:
+    150px
+    250px
+    250px
+    250px
+    250px
+    24px
+    270px
+    250px
+    250px
+    24px
+    250px
+    250px
+    250px
+    24px
     200px;
   gap: 8px;
 }
@@ -256,7 +258,6 @@ button:disabled {
   padding: 0;
   min-width: 0;
 }
-
 
 .table-row.table-head {
   background: #f1f5f9;
@@ -384,7 +385,7 @@ label.stacked span {
 }
 
 .measure-formula {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 13px;
   color: #475569;
   background: #ffffff;
@@ -401,9 +402,9 @@ label.stacked span {
   margin-top: 4px;
 }
 .inventory-table .table-row {
-  grid-template-columns: 
-    80px  /* Cycle */
-    80px  /* Day */
+  grid-template-columns:
+    80px /* Cycle */
+    80px /* Day */
     200px /* Beginning Inventory */
     250px /* Random Digits for Demand */
     100px /* Demand */

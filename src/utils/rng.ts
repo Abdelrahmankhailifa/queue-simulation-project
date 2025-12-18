@@ -14,9 +14,9 @@ export function middleSquare(seed: number, count: number, digits: number = 4): R
     let current = seed
 
     for (let i = 0; i < count; i++) {
-        let sq = current * current
+        const sq = current * current
         // Pad with leading zeros to 2*digits length
-        let s = sq.toString().padStart(digits * 2, '0')
+        const s = sq.toString().padStart(digits * 2, '0')
 
         // Extract middle 'digits'
         // Example: digits=4, 2*digits=8. Middle 4 are from index 2 to 6.
@@ -52,6 +52,8 @@ export function lcg(z0: number, a: number, c: number, m: number, count: number):
 /**
  * Helper to normalize numbers to a specific scale (e.g. 1-100)
  * Logic: Take the raw number, map it to 0-1 range based on its potential max, then scale.
+ * When scaleTo <= 1, output raw decimals (for 0-1 range tests).
+ * When scaleTo > 1, round to integers (for discrete ranges like 1-100).
  */
 export function normalizeValues(
     values: number[],
@@ -61,8 +63,14 @@ export function normalizeValues(
     return values.map(v => {
         // Normalize to 0-1 (approx)
         const normalized = v / sourceMax
-        // User requested rounding: 37.5 -> 38, 37.4 -> 37.
-        // This corresponds to Math.round() logic.
+        
+        if (scaleTo <= 1) {
+            // For 0-1 range (e.g., TestRandomNumbers page), return decimal values
+            // Round to 4 decimal places for readability
+            return Math.round(normalized * 10000) / 10000
+        }
+        
+        // For larger scales (e.g., 1-100), round to integers
         return Math.round(normalized * scaleTo)
     })
 }

@@ -1,76 +1,94 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { DistributionTable, type CumulativeRow, type DistRow } from '../components/DistributionTable'
-import { RngInput } from '../components/RngInput'
-import { exportToPdf } from '../utils/export'
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  DistributionTable,
+  type CumulativeRow,
+  type DistRow,
+} from "../components/DistributionTable";
+import { RngInput } from "../components/RngInput";
+import { exportToPdf } from "../utils/export";
 
 type SimulationRow = {
-  customer: number
-  randArrival: number
-  interarrival: number
-  arrival: number
-  randService: number
-  service: number
-  serviceStart: number
-  serviceEnd: number
-  waiting: number
-  idle: number
-  timeInSystem: number
-}
+  customer: number;
+  randArrival: number;
+  interarrival: number;
+  arrival: number;
+  randService: number;
+  service: number;
+  serviceStart: number;
+  serviceEnd: number;
+  waiting: number;
+  idle: number;
+  timeInSystem: number;
+};
 
-const tolerance = 0.001
+const tolerance = 0.001;
 
-function buildCumulative(dist: DistRow[]): { rows: CumulativeRow[]; error?: string } {
+function buildCumulative(dist: DistRow[]): {
+  rows: CumulativeRow[];
+  error?: string;
+} {
   if (!dist.length) {
-    return { rows: [], error: 'Add at least one row' }
+    return { rows: [], error: "Add at least one row" };
   }
-  let sum = 0
+  let sum = 0;
   const rows: CumulativeRow[] = dist.map((row) => {
-    sum += row.probability
+    sum += row.probability;
     return {
       value: row.value,
       probability: row.probability,
       cumulative: sum,
       rangeStart: 0,
       rangeEnd: 0,
-    }
-  })
+    };
+  });
 
   if (Math.abs(sum - 1) > tolerance) {
-    return { rows: [], error: 'Probabilities must sum to 1' }
+    return { rows: [], error: "Probabilities must sum to 1" };
   }
 
   rows.forEach((row, idx) => {
-    const previousEnd = idx === 0 ? 0 : rows[idx - 1].rangeEnd
-    const cumulativeScaled = Math.round(row.cumulative * 100)
-    const start = previousEnd + 1
-    const end = Math.min(100, cumulativeScaled)
-    row.rangeStart = start
-    row.rangeEnd = end
-  })
+    const previousEnd = idx === 0 ? 0 : rows[idx - 1].rangeEnd;
+    const cumulativeScaled = Math.round(row.cumulative * 100);
+    const start = previousEnd + 1;
+    const end = Math.min(100, cumulativeScaled);
+    row.rangeStart = start;
+    row.rangeEnd = end;
+  });
 
-  return { rows }
+  return { rows };
 }
 
 function mapRandomToValue(rand: number, ranges: CumulativeRow[]) {
-  const normalized = rand === 0 ? 100 : rand
-  return ranges.find((r) => normalized >= r.rangeStart && normalized <= r.rangeEnd)?.value ?? null
+  const normalized = rand === 0 ? 100 : rand;
+  return (
+    ranges.find((r) => normalized >= r.rangeStart && normalized <= r.rangeEnd)
+      ?.value ?? null
+  );
 }
 
-function toCsv(rows: SimulationRow[], summary?: any) {
+function toCsv(
+  rows: SimulationRow[],
+  summary?: {
+    avgWaiting: number;
+    avgService: number;
+    idlePercent: number;
+    utilization: number;
+  }
+) {
   const header = [
-    'Cust #',
-    'Rand Arrival',
-    'Interarrival',
-    'Arrival',
-    'Rand Service',
-    'Service',
-    'Service Start',
-    'Service End',
-    'Waiting',
-    'Idle',
-    'Time in System',
-  ]
+    "Cust #",
+    "Rand Arrival",
+    "Interarrival",
+    "Arrival",
+    "Rand Service",
+    "Service",
+    "Service Start",
+    "Service End",
+    "Waiting",
+    "Idle",
+    "Time in System",
+  ];
   const body = rows
     .map((r) =>
       [
@@ -85,39 +103,48 @@ function toCsv(rows: SimulationRow[], summary?: any) {
         r.waiting,
         r.idle,
         r.timeInSystem,
-      ].join(','),
+      ].join(",")
     )
-    .join('\n')
+    .join("\n");
 
-  let csv = [header.join(','), body].join('\n')
+  let csv = [header.join(","), body].join("\n");
 
   if (summary) {
-    csv += '\n\nPerformance Analysis\n'
-    csv += `Avg waiting,${summary.avgWaiting.toFixed(2)}\n`
-    csv += `Avg service,${summary.avgService.toFixed(2)}\n`
-    csv += `Server idle %,${summary.idlePercent.toFixed(1)}%\n`
-    csv += `Utilization,${summary.utilization.toFixed(1)}%\n`
+    csv += "\n\nPerformance Analysis\n";
+    csv += `Avg waiting,${summary.avgWaiting.toFixed(2)}\n`;
+    csv += `Avg service,${summary.avgService.toFixed(2)}\n`;
+    csv += `Server idle %,${summary.idlePercent.toFixed(1)}%\n`;
+    csv += `Utilization,${summary.utilization.toFixed(1)}%\n`;
   }
 
-  return csv
+  return csv;
 }
 
 function useDistributionState(initial: DistRow[]) {
   const [rows, setRows] = useState<DistRow[]>(
-    initial.map((r) => ({ value: r.value, probability: r.probability })),
-  )
+    initial.map((r) => ({ value: r.value, probability: r.probability }))
+  );
 
-  const updateRow = (index: number, key: keyof DistRow, value: number | null) => {
+  const updateRow = (
+    index: number,
+    key: keyof DistRow,
+    value: number | null
+  ) => {
     setRows((prev) =>
-      prev.map((row, i) => (i === index && value !== null ? { ...row, [key]: value } : row)),
-    )
-  }
+      prev.map((row, i) =>
+        i === index && value !== null ? { ...row, [key]: value } : row
+      )
+    );
+  };
 
-  const addRow = () => setRows((prev) => [...prev, { value: 0, probability: 0 }])
+  const addRow = () =>
+    setRows((prev) => [...prev, { value: 0, probability: 0 }]);
   const removeRow = (index: number) =>
-    setRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev))
+    setRows((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== index) : prev
+    );
 
-  return { rows, setRows, updateRow, addRow, removeRow }
+  return { rows, setRows, updateRow, addRow, removeRow };
 }
 
 export function SingleServerPage() {
@@ -125,47 +152,47 @@ export function SingleServerPage() {
     { value: 1, probability: 0.25 },
     { value: 2, probability: 0.35 },
     { value: 3, probability: 0.4 },
-  ])
+  ]);
   const service = useDistributionState([
     { value: 2, probability: 0.3 },
     { value: 3, probability: 0.5 },
     { value: 4, probability: 0.2 },
-  ])
+  ]);
 
-  const [arrivalDigits, setArrivalDigits] = useState('15,64,12,87,34,56,90,10')
-  const [serviceDigits, setServiceDigits] = useState('05,44,70,22,91,39,60,08')
-  const [customerCount, setCustomerCount] = useState(8)
+  const [arrivalDigits, setArrivalDigits] = useState("15,64,12,87,34,56,90,10");
+  const [serviceDigits, setServiceDigits] = useState("05,44,70,22,91,39,60,08");
+  const [customerCount, setCustomerCount] = useState(8);
 
-  const [arrivalTable, setArrivalTable] = useState<CumulativeRow[]>([])
-  const [serviceTable, setServiceTable] = useState<CumulativeRow[]>([])
-  const [simRows, setSimRows] = useState<SimulationRow[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [arrivalTable, setArrivalTable] = useState<CumulativeRow[]>([]);
+  const [serviceTable, setServiceTable] = useState<CumulativeRow[]>([]);
+  const [simRows, setSimRows] = useState<SimulationRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const summary = useMemo(() => {
-    if (!simRows.length) return null
-    const totalWaiting = simRows.reduce((acc, r) => acc + r.waiting, 0)
-    const totalService = simRows.reduce((acc, r) => acc + r.service, 0)
-    const totalIdle = simRows.reduce((acc, r) => acc + Math.max(r.idle, 0), 0)
-    const lastEnd = simRows[simRows.length - 1].serviceEnd
+    if (!simRows.length) return null;
+    const totalWaiting = simRows.reduce((acc, r) => acc + r.waiting, 0);
+    const totalService = simRows.reduce((acc, r) => acc + r.service, 0);
+    const totalIdle = simRows.reduce((acc, r) => acc + Math.max(r.idle, 0), 0);
+    const lastEnd = simRows[simRows.length - 1].serviceEnd;
 
     return {
       avgWaiting: totalWaiting / simRows.length,
       avgService: totalService / simRows.length,
       idlePercent: lastEnd ? (totalIdle / lastEnd) * 100 : 0,
       utilization: lastEnd ? (totalService / lastEnd) * 100 : 0,
-    }
-  }, [simRows])
+    };
+  }, [simRows]);
 
   const totals = useMemo(() => {
-    if (!simRows.length) return null
-    const interarrival = simRows.reduce((acc, r) => acc + r.interarrival, 0)
-    const arrival = simRows[simRows.length - 1].arrival
-    const service = simRows.reduce((acc, r) => acc + r.service, 0)
-    const serviceStart = '' // not summed in the reference table
-    const serviceEnd = '' // not summed in the reference table
-    const waiting = simRows.reduce((acc, r) => acc + r.waiting, 0)
-    const timeInSystem = simRows.reduce((acc, r) => acc + r.timeInSystem, 0)
-    const idle = simRows.reduce((acc, r) => acc + r.idle, 0)
+    if (!simRows.length) return null;
+    const interarrival = simRows.reduce((acc, r) => acc + r.interarrival, 0);
+    const arrival = simRows[simRows.length - 1].arrival;
+    const service = simRows.reduce((acc, r) => acc + r.service, 0);
+    const serviceStart = ""; // not summed in the reference table
+    const serviceEnd = ""; // not summed in the reference table
+    const waiting = simRows.reduce((acc, r) => acc + r.waiting, 0);
+    const timeInSystem = simRows.reduce((acc, r) => acc + r.timeInSystem, 0);
+    const idle = simRows.reduce((acc, r) => acc + r.idle, 0);
     return {
       interarrival,
       arrival,
@@ -175,8 +202,8 @@ export function SingleServerPage() {
       waiting,
       timeInSystem,
       idle,
-    }
-  }, [simRows])
+    };
+  }, [simRows]);
 
   const parseDigits = (value: string) =>
     value
@@ -184,82 +211,85 @@ export function SingleServerPage() {
       .filter(Boolean)
       .map((d) => Number(d))
       .map((d) => (d === 0 ? 100 : d))
-      .filter((d) => Number.isFinite(d))
+      .filter((d) => Number.isFinite(d));
 
   const handleGenerateTables = () => {
-    const arrivalRes = buildCumulative(arrival.rows)
-    const serviceRes = buildCumulative(service.rows)
+    const arrivalRes = buildCumulative(arrival.rows);
+    const serviceRes = buildCumulative(service.rows);
     if (arrivalRes.error) {
-      setError(`Arrival: ${arrivalRes.error}`)
-      setArrivalTable([])
-      setServiceTable([])
-      return
+      setError(`Arrival: ${arrivalRes.error}`);
+      setArrivalTable([]);
+      setServiceTable([]);
+      return;
     }
     if (serviceRes.error) {
-      setError(`Service: ${serviceRes.error}`)
-      setArrivalTable([])
-      setServiceTable([])
-      return
+      setError(`Service: ${serviceRes.error}`);
+      setArrivalTable([]);
+      setServiceTable([]);
+      return;
     }
-    setError(null)
-    setArrivalTable(arrivalRes.rows)
-    setServiceTable(serviceRes.rows)
-  }
+    setError(null);
+    setArrivalTable(arrivalRes.rows);
+    setServiceTable(serviceRes.rows);
+  };
 
   const runSimulation = () => {
-    const count = Number.isFinite(customerCount) ? Math.floor(customerCount) : 0
+    const count = Number.isFinite(customerCount)
+      ? Math.floor(customerCount)
+      : 0;
     if (count < 1) {
-      setError('Number of customers must be at least 1')
-      return
+      setError("Number of customers must be at least 1");
+      return;
     }
-    const arrivalRes = buildCumulative(arrival.rows)
-    const serviceRes = buildCumulative(service.rows)
+    const arrivalRes = buildCumulative(arrival.rows);
+    const serviceRes = buildCumulative(service.rows);
     if (arrivalRes.error) {
-      setError(`Arrival: ${arrivalRes.error}`)
-      return
+      setError(`Arrival: ${arrivalRes.error}`);
+      return;
     }
     if (serviceRes.error) {
-      setError(`Service: ${serviceRes.error}`)
-      return
+      setError(`Service: ${serviceRes.error}`);
+      return;
     }
-    const arrivalNums = parseDigits(arrivalDigits)
-    const serviceNums = parseDigits(serviceDigits)
+    const arrivalNums = parseDigits(arrivalDigits);
+    const serviceNums = parseDigits(serviceDigits);
 
     if (arrivalNums.length < count - 1) {
-      setError('Not enough arrival random digits for the requested customers')
-      return
+      setError("Not enough arrival random digits for the requested customers");
+      return;
     }
     if (serviceNums.length < count) {
-      setError('Not enough service random digits for the requested customers')
-      return
+      setError("Not enough service random digits for the requested customers");
+      return;
     }
     if ([...arrivalNums, ...serviceNums].some((d) => d < 1 || d > 100)) {
-      setError('Random digits must be between 01 and 00 (i.e., 1 to 100)')
-      return
+      setError("Random digits must be between 01 and 00 (i.e., 1 to 100)");
+      return;
     }
 
-    const table: SimulationRow[] = []
+    const table: SimulationRow[] = [];
 
     for (let i = 0; i < count; i++) {
-      const customer = i + 1
-      const randArrival = i === 0 ? 0 : arrivalNums[i - 1]
-      const randService = serviceNums[i]
+      const customer = i + 1;
+      const randArrival = i === 0 ? 0 : arrivalNums[i - 1];
+      const randService = serviceNums[i];
 
-      const interarrival = i === 0 ? 0 : mapRandomToValue(randArrival, arrivalRes.rows)
-      const serviceTime = mapRandomToValue(randService, serviceRes.rows)
+      const interarrival =
+        i === 0 ? 0 : mapRandomToValue(randArrival, arrivalRes.rows);
+      const serviceTime = mapRandomToValue(randService, serviceRes.rows);
 
       if (interarrival === null || serviceTime === null) {
-        setError('Random digit could not be mapped to a time. Check tables.')
-        return
+        setError("Random digit could not be mapped to a time. Check tables.");
+        return;
       }
 
-      const arrivalTime = i === 0 ? 0 : table[i - 1].arrival + interarrival
-      const previousServiceEnd = i === 0 ? 0 : table[i - 1].serviceEnd
-      const serviceStart = Math.max(arrivalTime, previousServiceEnd)
-      const waiting = serviceStart - arrivalTime
-      const idle = serviceStart - previousServiceEnd
-      const serviceEnd = serviceStart + serviceTime
-      const timeInSystem = waiting + serviceTime
+      const arrivalTime = i === 0 ? 0 : table[i - 1].arrival + interarrival;
+      const previousServiceEnd = i === 0 ? 0 : table[i - 1].serviceEnd;
+      const serviceStart = Math.max(arrivalTime, previousServiceEnd);
+      const waiting = serviceStart - arrivalTime;
+      const idle = serviceStart - previousServiceEnd;
+      const serviceEnd = serviceStart + serviceTime;
+      const timeInSystem = waiting + serviceTime;
 
       table.push({
         customer,
@@ -273,39 +303,41 @@ export function SingleServerPage() {
         waiting,
         idle,
         timeInSystem,
-      })
+      });
     }
 
-    setError(null)
-    setArrivalTable(arrivalRes.rows)
-    setServiceTable(serviceRes.rows)
-    setSimRows(table)
-  }
+    setError(null);
+    setArrivalTable(arrivalRes.rows);
+    setServiceTable(serviceRes.rows);
+    setSimRows(table);
+  };
 
   const handleDownloadCsv = () => {
-    if (!simRows.length) return
-    const blob = new Blob([toCsv(simRows, summary)], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'single-server-simulation.csv'
-    link.click()
-    URL.revokeObjectURL(url)
-  }
+    if (!simRows.length) return;
+    const blob = new Blob([toCsv(simRows, summary ?? undefined)], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "single-server-simulation.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleDownloadPdf = () => {
-    if (!simRows.length || !summary) return
+    if (!simRows.length || !summary) return;
     const headers = [
-      'Cust #',
-      'Interarrival',
-      'Arrival',
-      'Service',
-      'S. Start',
-      'S. End',
-      'Waiting',
-      'Idle',
-      'Time in Sys',
-    ]
+      "Cust #",
+      "Interarrival",
+      "Arrival",
+      "Service",
+      "S. Start",
+      "S. End",
+      "Waiting",
+      "Idle",
+      "Time in Sys",
+    ];
     const body = simRows.map((r) => [
       r.customer,
       r.interarrival,
@@ -316,17 +348,23 @@ export function SingleServerPage() {
       r.waiting,
       r.idle,
       r.timeInSystem,
-    ])
+    ]);
 
     const pdfSummary = {
-      'Avg waiting': summary.avgWaiting.toFixed(2),
-      'Avg service': summary.avgService.toFixed(2),
-      'Server idle %': `${summary.idlePercent.toFixed(1)}%`,
-      'Utilization %': `${summary.utilization.toFixed(1)}%`,
-    }
+      "Avg waiting": summary.avgWaiting.toFixed(2),
+      "Avg service": summary.avgService.toFixed(2),
+      "Server idle %": `${summary.idlePercent.toFixed(1)}%`,
+      "Utilization %": `${summary.utilization.toFixed(1)}%`,
+    };
 
-    exportToPdf('single-server-simulation', 'Single-Server Queue Simulation', headers, body, pdfSummary)
-  }
+    exportToPdf(
+      "single-server-simulation",
+      "Single-Server Queue Simulation",
+      headers,
+      body,
+      pdfSummary
+    );
+  };
 
   return (
     <main className="page detail">
@@ -335,8 +373,8 @@ export function SingleServerPage() {
       </Link>
       <h1>Single-Server Queue Simulation</h1>
       <p className="detail-body">
-        Configure arrival and service distributions, provide random digits, and run a discrete-event
-        simulation for the single-server checkout scenario.
+        Configure arrival and service distributions, provide random digits, and
+        run a discrete-event simulation for the single-server checkout scenario.
       </p>
 
       <section className="panel">
@@ -393,13 +431,13 @@ export function SingleServerPage() {
               type="text"
               value={customerCount}
               onChange={(e) => {
-                const val = e.target.value
-                if (val === '') {
-                  setCustomerCount(0)
+                const val = e.target.value;
+                if (val === "") {
+                  setCustomerCount(0);
                 } else {
-                  const num = Math.floor(Number(val))
+                  const num = Math.floor(Number(val));
                   if (Number.isFinite(num) && num >= 0) {
-                    setCustomerCount(num)
+                    setCustomerCount(num);
                   }
                 }
               }}
@@ -412,10 +450,18 @@ export function SingleServerPage() {
         <div className="panel-header">
           <h2>Main Simulation Table</h2>
           <div className="panel-actions">
-            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadCsv}>
+            <button
+              className="secondary"
+              disabled={!simRows.length}
+              onClick={handleDownloadCsv}
+            >
               Download CSV
             </button>
-            <button className="secondary" disabled={!simRows.length} onClick={handleDownloadPdf}>
+            <button
+              className="secondary"
+              disabled={!simRows.length}
+              onClick={handleDownloadPdf}
+            >
               Download PDF
             </button>
           </div>
@@ -484,6 +530,5 @@ export function SingleServerPage() {
         )}
       </section>
     </main>
-  )
+  );
 }
-
